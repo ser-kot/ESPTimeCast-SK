@@ -22,9 +22,18 @@
 
 #define HARDWARE_TYPE MD_MAX72XX::FC16_HW
 #define MAX_DEVICES 4
-#define CLK_PIN 7    //D5
-#define CS_PIN 11    // D7
-#define DATA_PIN 12  //D8
+
+#ifdef ESP8266
+  #define CLK_PIN 7    //D5
+  #define CS_PIN 11    // D7
+  #define DATA_PIN 12  //D8
+#elif defined(ESP32)
+  #define CLK_PIN   18
+  #define CS_PIN    5
+  #define DATA_PIN  23
+#else
+  #error "Unsupported MCU (need ESP8266 or ESP32)"
+#endif
 
 #ifdef ESP8266
 WiFiEventHandler mConnectHandler;
