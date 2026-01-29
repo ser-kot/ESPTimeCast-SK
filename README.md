@@ -64,7 +64,7 @@ ESPTimeCast has been featured on major maker and tech platforms highlighting its
 &nbsp;
 ## ✨ Features
 
-- **LED Matrix Display (8x32)** powered by MAX7219, with custom font support
+- **LED Matrix Display (8 modules, 8×32)** powered by MAX7219: first 4 modules show time only; last 4 show weather, description, countdown, date, custom message, etc.
 - **Simple Web Interface** for all configuration (WiFi, weather, time zone, display durations, and more)
 - **Automatic NTP Sync** with robust status feedback and retries
 - **Weather Fetching** from OpenWeatherMap (every 5 minutes, temp/humidity/description)
