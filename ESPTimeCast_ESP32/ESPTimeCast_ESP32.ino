@@ -3147,6 +3147,7 @@ void loop() {
 
   // --- WEATHER Display Mode (zone 1 only) ---
   static bool weatherWasAvailable = false;
+  static char weatherZone1Buffer[32];  // Persistent buffer for setTextBuffer (library keeps pointer)
   if (displayMode == 1) {
     P.setCharSpacing(ZONE_INFO, 1);
     if (weatherAvailable) {
@@ -3157,8 +3158,9 @@ void loop() {
       } else {
         weatherDisplay = currentTemp + tempSymbol;
       }
+      weatherDisplay.toCharArray(weatherZone1Buffer, sizeof(weatherZone1Buffer));
       P.setTextAlignment(ZONE_INFO, PA_CENTER);
-      P.setTextBuffer(ZONE_INFO, weatherDisplay.c_str());
+      P.setTextBuffer(ZONE_INFO, weatherZone1Buffer);
       P.setTextEffect(ZONE_INFO, PA_PRINT, PA_NO_EFFECT);
       P.displayReset(ZONE_INFO);
       weatherWasAvailable = true;
@@ -3173,6 +3175,7 @@ void loop() {
       P.setTextEffect(ZONE_INFO, PA_PRINT, PA_NO_EFFECT);
       P.displayReset(ZONE_INFO);
     }
+    P.displayAnimate();  // Keep zone 0 (clock) and zone 1 updating every iteration
     yield();
     return;
   }
