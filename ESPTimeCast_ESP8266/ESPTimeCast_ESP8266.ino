@@ -22,9 +22,26 @@
 
 #define HARDWARE_TYPE MD_MAX72XX::FC16_HW
 #define MAX_DEVICES 4
+
+/*
 #define CLK_PIN 14   //D5
 #define CS_PIN 13    //D7
 #define DATA_PIN 15  //D8
+*/
+#if defined(ARDUINO_ARCH_ESP8266)
+  // Pinout for NodeMCU using HSPI (hardware SPI) default pins 
+  #define CLK_PIN 14   //D5,HSCLK
+  #define CS_PIN 15    //D8,HCS
+  #define DATA_PIN 13  //D7,HMOSI
+#elif defined(ARDUINO_ARCH_ESP32)
+  // Pinout for ESP32 WROOM DevKit V1 using VSPI default pins 
+  #define CLK_PIN   18
+  #define CS_PIN    5
+  #define DATA_PIN  23
+#else
+  #error "Unsupported MCU (need ARDUINO_ARCH_ESP8266 or ARDUINO_ARCH_ESP32)"
+#endif
+
 
 #ifdef ESP8266
 WiFiEventHandler mConnectHandler;
