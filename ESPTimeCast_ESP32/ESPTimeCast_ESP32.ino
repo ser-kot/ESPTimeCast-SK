@@ -83,6 +83,8 @@ String detailedDesc = "";
 // Timing and display settings
 unsigned long clockDuration = 10000;
 unsigned long weatherDuration = 5000;
+// With 8-panel split (time on top, info below): lower panel cycles continuously; short pause when "clock" phase.
+const unsigned long LOWER_PANEL_CYCLE_INTERVAL_MS = 1000;
 bool displayOff = false;
 int brightness = 7;
 bool flipDisplay = false;
@@ -2996,7 +2998,8 @@ void loop() {
 
 
   // Only advance mode by timer for clock/weather, not description!
-  unsigned long displayDuration = (displayMode == 0) ? clockDuration : weatherDuration;
+  // With 8-panel split, time is always on top; use short interval for "clock" phase so lower panel cycles continuously.
+  unsigned long displayDuration = (displayMode == 0) ? LOWER_PANEL_CYCLE_INTERVAL_MS : weatherDuration;
   if ((displayMode == 0 || displayMode == 1) && millis() - lastSwitch > displayDuration) {
     advanceDisplayMode();
   }
@@ -3069,13 +3072,12 @@ void loop() {
 
   unsigned long currentDisplayDuration = 0;
   if (displayMode == 0) {
-    currentDisplayDuration = clockDuration;
+    currentDisplayDuration = LOWER_PANEL_CYCLE_INTERVAL_MS;  // Time on top; lower panel cycles continuously
   } else if (displayMode == 1) {  // Weather
     currentDisplayDuration = weatherDuration;
   }
 
   // Only advance mode by timer for clock/weather static (Mode 0 & 1).
-  // Other modes (2, 3) have their own internal timers/conditions for advancement.
   if ((displayMode == 0 || displayMode == 1) && (millis() - lastSwitch > currentDisplayDuration)) {
     advanceDisplayMode();
   }
