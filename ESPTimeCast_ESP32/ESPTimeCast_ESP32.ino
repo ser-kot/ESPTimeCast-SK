@@ -3719,15 +3719,18 @@ void loop() {
   }
 
 
-  //DATE Display Mode
+  //DATE Display Mode (zone 1 only)
   else if (displayMode == 5 && showDate) {
 
     // --- VALID DATE CHECK ---
     if (timeinfo.tm_year < 120 || timeinfo.tm_mday <= 0 || timeinfo.tm_mon < 0 || timeinfo.tm_mon > 11) {
       advanceDisplayMode();
+      P.displayAnimate();
+      yield();
       return;  // skip drawing
     }
     // -------------------------
+    static char dateZone1Buffer[32];  // Persistent buffer for setTextBuffer
     String dateString;
 
     // Get localized month names
@@ -3799,15 +3802,18 @@ void loop() {
       }
     }
 
+    dateString.toCharArray(dateZone1Buffer, sizeof(dateZone1Buffer));
     P.setTextAlignment(ZONE_INFO, PA_CENTER);
     P.setCharSpacing(ZONE_INFO, 0);
-    P.setTextBuffer(ZONE_INFO, dateString.c_str());
+    P.setTextBuffer(ZONE_INFO, dateZone1Buffer);
     P.setTextEffect(ZONE_INFO, PA_PRINT, PA_NO_EFFECT);
     P.displayReset(ZONE_INFO);
 
     if (millis() - lastSwitch > weatherDuration) {
       advanceDisplayMode();
     }
+    P.displayAnimate();  // Keep zone 0 (clock) and zone 1 (date) updating every iteration
+    yield();
   }
 
 
