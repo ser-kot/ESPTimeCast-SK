@@ -3090,7 +3090,7 @@ void loop() {
       ntpAnimFrame++;
     }
   }
-  if (!ntpSyncSuccessful && !weatherAvailable) {
+  if (!ntpSyncSuccessful) {
     if (millis() - errorAltTimerZ0 > 2000) {
       errorAltTimerZ0 = millis();
       showNtpErrorZ0 = !showNtpErrorZ0;
@@ -3102,10 +3102,8 @@ void loop() {
     zone0Content = (ntpAnimFrame % 3 == 0) ? "S Y N C ®" : (ntpAnimFrame % 3 == 1) ? "S Y N C ¯" : "S Y N C º";
   } else if (!ntpSyncSuccessful) {
     zone0Content = showNtpErrorZ0 ? "(<" : "(*";
-  } else if (!weatherAvailable) {
-    zone0Content = "(*";
   } else {
-    zone0Content = timeString;
+    zone0Content = timeString;  // Always time when NTP ok; weather error (TEMP) shown on lower panel only
   }
 
   bool doingScrollIn = (displayMode == 0 && (prevDisplayMode == -1 || prevDisplayMode == 3 || prevDisplayMode == 4 || (prevDisplayMode == 2 && weatherDescription.length() > 8) || prevDisplayMode == 6) && !clockScrollDone);
