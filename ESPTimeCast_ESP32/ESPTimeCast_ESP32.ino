@@ -3175,8 +3175,10 @@ void loop() {
     bool shouldScrollIn = (prevDisplayMode == -1 || prevDisplayMode == 3 || prevDisplayMode == 4 || (prevDisplayMode == 2 && weatherDescription.length() > 8) || prevDisplayMode == 6);
     if (shouldScrollIn && !clockScrollDone) {
       if (!displaySize16) {
-        // 4-panel: do scroll-in animation
+        // 4-panel: do scroll-in animation (use same narrow spacing as static so no visual jump)
         P.setFont(ZONE_CLOCK, mFactory);
+        P.setCharSpacing(ZONE_CLOCK, 0);
+        P.setTextAlignment(ZONE_CLOCK, PA_CENTER);
         textEffect_t inDir = getEffectiveScrollDirection(PA_SCROLL_LEFT, flipDisplay);
         P.displayZoneText(ZONE_CLOCK, zone0Buffer, PA_CENTER, GENERAL_SCROLL_SPEED, 0, inDir, PA_NO_EFFECT);
         while (!P.getZoneStatus(ZONE_CLOCK)) {
