@@ -630,6 +630,15 @@ textarea::placeholder {
   </button>
 
   <div class="collapsible-content" aria-hidden="true">
+    <label style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;">
+      <span style="margin-right: 0.5em;">Display size: 32×16 (8 panels, two zones):</span>
+      <span class="toggle-switch">
+        <input type="checkbox" id="displaySize16" name="displaySize16">
+        <span class="toggle-slider"></span>
+      </span>
+    </label>
+    <p class="small" style="margin-top: -0.5rem; margin-bottom: 1rem;">Off = 32×8 (4 panels, original behaviour). On = 32×16 with time on top and weather/date/countdown on bottom. Takes effect after Save and reboot.</p>
+
     <label>Primary NTP Server:</label>
     <input type="text" name="ntpServer1" id="ntpServer1" placeholder="Enter NTP address">
 
@@ -941,6 +950,10 @@ window.onload = function () {
     const useWideFontEl = document.getElementById('useWideFontForTime');
     if (useWideFontEl) useWideFontEl.checked = !!(data.useWideFontForTime !== false && data.useWideFontForTime !== 'false' && data.useWideFontForTime !== 0);
 
+    // Display size (32x8 vs 32x16)
+    const displaySize16El = document.getElementById('displaySize16');
+    if (displaySize16El) displaySize16El.checked = !!(data.displaySize16 === true || data.displaySize16 === 'true' || data.displaySize16 === 1);
+
     // Attach listeners (mutually exclusive + API dependency)
     if (apiInputEl) apiInputEl.addEventListener('input', setDimmingFieldsEnabled);
     autoDimmingEl.addEventListener('change', () => {
@@ -1110,6 +1123,7 @@ async function submitConfig(event) {
   formData.set('showWeatherDescription', document.getElementById('showWeatherDescription').checked ? 'on' : '');
   formData.set('weatherUnits', document.getElementById('weatherUnits').checked ? 'imperial' : 'metric');
   formData.set('useWideFontForTime', document.getElementById('useWideFontForTime').checked ? 'on' : '');
+  formData.set('displaySize16', document.getElementById('displaySize16').checked ? 'on' : '');
 
   // --- NEW: Countdown Form Data ---
   formData.set('countdownEnabled', document.getElementById('countdownEnabled').checked ? 'true' : 'false');
