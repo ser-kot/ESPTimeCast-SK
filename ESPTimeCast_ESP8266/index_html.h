@@ -630,15 +630,6 @@ textarea::placeholder {
   </button>
 
   <div class="collapsible-content" aria-hidden="true">
-    <label style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;">
-      <span style="margin-right: 0.5em;">Display size: 32×16 (8 panels, two zones):</span>
-      <span class="toggle-switch">
-        <input type="checkbox" id="displaySize16" name="displaySize16">
-        <span class="toggle-slider"></span>
-      </span>
-    </label>
-    <p class="small" style="margin-top: -0.5rem; margin-bottom: 1rem;">Off = 32×8 (4 panels, original behaviour). On = 32×16 with time on top and weather/date/countdown on bottom. Takes effect after Save and reboot.</p>
-
     <label>Primary NTP Server:</label>
     <input type="text" name="ntpServer1" id="ntpServer1" placeholder="Enter NTP address">
 
@@ -804,6 +795,15 @@ textarea::placeholder {
       </div>
 
       <label style="display: flex; align-items: center; justify-content: space-between; margin-top: 1.75rem;">
+        <span style="margin-right: 0.5em;">Display size: 32×16 (8 panels, two zones):</span>
+        <span class="toggle-switch">
+          <input type="checkbox" id="displaySize16" name="displaySize16">
+          <span class="toggle-slider"></span>
+        </span>
+      </label>
+      <p class="small" style="margin-top: 0.25rem;">Off = 32×8 (4 panels). On = 32×16 with time on top, info below. Takes effect after Save and reboot.</p>
+
+      <label style="display: flex; align-items: center; justify-content: space-between; margin-top: 0.75rem;">
         <span style="margin-right: 0.5em;">Wide Font for Time (HH:MM):</span>
         <span class="toggle-switch">
           <input type="checkbox" id="useWideFontForTime" name="useWideFontForTime">

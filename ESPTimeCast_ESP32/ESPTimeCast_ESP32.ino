@@ -3170,24 +3170,21 @@ void loop() {
     P.displayReset(ZONE_CLOCK);
   }
 
-  // --- CLOCK Display Mode: scroll-in on zone 0 when entering from other modes ---
+  // --- CLOCK Display Mode: scroll-in on zone 0 only in 4-panel when entering from other modes; in 8-panel upper panel stays static ---
   if (displayMode == 0) {
     bool shouldScrollIn = (prevDisplayMode == -1 || prevDisplayMode == 3 || prevDisplayMode == 4 || (prevDisplayMode == 2 && weatherDescription.length() > 8) || prevDisplayMode == 6);
     if (shouldScrollIn && !clockScrollDone) {
       if (!displaySize16) {
+        // 4-panel: do scroll-in animation
         P.setFont(ZONE_CLOCK, mFactory);
-      } else if (zone0SimpleHHMM && useWideFontForTime) {
-        P.setFont(ZONE_CLOCK, nullptr);
-      } else {
-        P.setFont(ZONE_CLOCK, mFactory);
+        textEffect_t inDir = getEffectiveScrollDirection(PA_SCROLL_LEFT, flipDisplay);
+        P.displayZoneText(ZONE_CLOCK, zone0Buffer, PA_CENTER, GENERAL_SCROLL_SPEED, 0, inDir, PA_NO_EFFECT);
+        while (!P.getZoneStatus(ZONE_CLOCK)) {
+          P.displayAnimate();
+          yield();
+        }
       }
-      textEffect_t inDir = getEffectiveScrollDirection(PA_SCROLL_LEFT, flipDisplay);
-      P.displayZoneText(ZONE_CLOCK, zone0Buffer, PA_CENTER, GENERAL_SCROLL_SPEED, 0, inDir, PA_NO_EFFECT);
-      while (!P.getZoneStatus(ZONE_CLOCK)) {
-        P.displayAnimate();
-        yield();
-      }
-      // After scroll completes, set zone 0 to static time (library keeps pointer; zone0Buffer is static).
+      // After scroll (4-panel) or when 8-panel: set zone 0 to static time (no scroll on upper panel in 8-panel).
       lastZone0Content = timeString;
       P.setCharSpacing(ZONE_CLOCK, 0);
       P.setTextAlignment(ZONE_CLOCK, PA_CENTER);
