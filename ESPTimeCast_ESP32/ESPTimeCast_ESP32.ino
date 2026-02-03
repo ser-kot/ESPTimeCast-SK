@@ -3181,23 +3181,21 @@ void loop() {
   if (displayMode == 0) {
     bool shouldScrollIn = !displaySize16 && (prevDisplayMode != 0 && !clockScrollDone);
     if (shouldScrollIn) {
-      if (!displaySize16) {
-        // 4-panel: do scroll-in animation (same API as startZone1Scroll so scroll actually runs).
-        P.displayClear(ZONE_CLOCK);
-        P.setFont(ZONE_CLOCK, mFactory);
-        P.setCharSpacing(ZONE_CLOCK, 0);
-        P.setTextAlignment(ZONE_CLOCK, PA_CENTER);
-        P.setTextBuffer(ZONE_CLOCK, zone0Buffer);
-        textEffect_t inDir = getEffectiveScrollDirection(PA_SCROLL_LEFT, flipDisplay);
-        P.setTextEffect(ZONE_CLOCK, inDir, PA_NO_EFFECT);
-        P.setSpeed(ZONE_CLOCK, GENERAL_SCROLL_SPEED);
-        P.displayReset(ZONE_CLOCK);
-        while (!P.getZoneStatus(ZONE_CLOCK)) {
-          P.displayAnimate();
-          yield();
-        }
+      // 4-panel: do scroll-in animation (same API as startZone1Scroll so scroll actually runs).
+      P.displayClear(ZONE_CLOCK);
+      P.setFont(ZONE_CLOCK, mFactory);
+      P.setCharSpacing(ZONE_CLOCK, 0);
+      P.setTextAlignment(ZONE_CLOCK, PA_CENTER);
+      P.setTextBuffer(ZONE_CLOCK, zone0Buffer);
+      textEffect_t inDir = getEffectiveScrollDirection(PA_SCROLL_LEFT, flipDisplay);
+      P.setTextEffect(ZONE_CLOCK, inDir, PA_NO_EFFECT);
+      P.setSpeed(ZONE_CLOCK, GENERAL_SCROLL_SPEED);
+      P.displayReset(ZONE_CLOCK);
+      while (!P.getZoneStatus(ZONE_CLOCK)) {
+        P.displayAnimate();
+        yield();
       }
-      // After scroll (4-panel) or when 8-panel: set zone 0 to static time (no scroll on upper panel in 8-panel).
+      // After scroll: set zone 0 to static time.
       lastZone0Content = timeString;
       P.setCharSpacing(ZONE_CLOCK, 0);
       P.setTextAlignment(ZONE_CLOCK, PA_CENTER);
