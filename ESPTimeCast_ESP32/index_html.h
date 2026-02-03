@@ -736,14 +736,6 @@ textarea::placeholder {
   </span>
 </label>
 
-<label style="display: flex; align-items: center; justify-content: space-between; margin-top: 0.75rem;">
-  <span style="margin-right: 0.5em;">Wide Font for Time (HH:MM):</span>
-  <span class="toggle-switch">
-    <input type="checkbox" id="useWideFontForTime" name="useWideFontForTime">
-    <span class="toggle-slider"></span>
-  </span>
-</label>
-
 
 <div class="form-row two-col">   
   <div>         
@@ -801,6 +793,24 @@ textarea::placeholder {
           title="Only uppercase letters, numbers, space, and : ! ' - . , _ + % / ? allowed">
         <div class="small">Allowed characters: A–Z, 0–9, space, and : ! ' - . ? , _ + % /</div>
       </div>
+
+      <label style="display: flex; align-items: center; justify-content: space-between; margin-top: 1.75rem;">
+        <span style="margin-right: 0.5em;">Display size: 32×16 (8 panels, two zones):</span>
+        <span class="toggle-switch">
+          <input type="checkbox" id="displaySize16" name="displaySize16">
+          <span class="toggle-slider"></span>
+        </span>
+      </label>
+      <p class="small" style="margin-top: 0.25rem;">Off = 32×8 (4 panels). On = 32×16 with time on top, info below. Takes effect after Save and reboot.</p>
+
+      <label style="display: flex; align-items: center; justify-content: space-between; margin-top: 0.75rem;">
+        <span style="margin-right: 0.5em;">Wide Font for Time (HH:MM):</span>
+        <span class="toggle-switch">
+          <input type="checkbox" id="useWideFontForTime" name="useWideFontForTime">
+          <span class="toggle-slider"></span>
+        </span>
+      </label>
+      <p class="small" style="margin-top: 0.25rem;">Only in 32×16 (8-panel) mode. In 4-panel mode this option is ignored.</p>
     </div>   
   </div>
   <input type="submit" class="primary-button" value="Save Settings">
@@ -940,6 +950,10 @@ window.onload = function () {
     // Wide font for time (zone 0 plain HH:MM)
     const useWideFontEl = document.getElementById('useWideFontForTime');
     if (useWideFontEl) useWideFontEl.checked = !!(data.useWideFontForTime !== false && data.useWideFontForTime !== 'false' && data.useWideFontForTime !== 0);
+
+    // Display size (32x8 vs 32x16)
+    const displaySize16El = document.getElementById('displaySize16');
+    if (displaySize16El) displaySize16El.checked = !!(data.displaySize16 === true || data.displaySize16 === 'true' || data.displaySize16 === 1);
 
     // Attach listeners (mutually exclusive + API dependency)
     if (apiInputEl) apiInputEl.addEventListener('input', setDimmingFieldsEnabled);
@@ -1110,6 +1124,7 @@ async function submitConfig(event) {
   formData.set('showWeatherDescription', document.getElementById('showWeatherDescription').checked ? 'on' : '');
   formData.set('weatherUnits', document.getElementById('weatherUnits').checked ? 'imperial' : 'metric');
   formData.set('useWideFontForTime', document.getElementById('useWideFontForTime').checked ? 'on' : '');
+  formData.set('displaySize16', document.getElementById('displaySize16').checked ? 'on' : '');
 
   // --- NEW: Countdown Form Data ---
   formData.set('countdownEnabled', document.getElementById('countdownEnabled').checked ? 'true' : 'false');

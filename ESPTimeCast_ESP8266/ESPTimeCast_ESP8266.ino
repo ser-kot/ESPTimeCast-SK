@@ -120,6 +120,7 @@ int sunsetHour = 18;
 int sunsetMinute = 0;
 bool clockOnlyDuringDimming = false;
 bool useWideFontForTime = true;  // When true, use library default (wider) font for plain HH:MM on zone 0
+bool displaySize16 = false;      // false = 32x8 (4 panels, original behaviour); true = 32x16 (8 panels, two zones)
 
 //Countdown Globals - NEW
 bool countdownEnabled = false;
@@ -236,13 +237,17 @@ textEffect_t getEffectiveScrollDirection(textEffect_t desiredDirection, bool isF
   return desiredDirection;
 }
 
-// Start scrolling text on zone 1 (info panel). Use getZoneStatus(ZONE_INFO) to wait for completion.
+// Info zone: zone 1 when 32x16 (8 panels), zone 0 when 32x8 (4 panels). Clock is always zone 0.
+inline uint8_t getInfoZone() { return displaySize16 ? (uint8_t)ZONE_INFO : 0; }
+
+// Start scrolling text on info zone (zone 1 in 32x16, zone 0 in 32x8). Use getZoneStatus(getInfoZone()) to wait for completion.
 void startZone1Scroll(const char *pText, textPosition_t align, textEffect_t effect, uint16_t speed) {
-  P.setTextBuffer(ZONE_INFO, pText);
-  P.setTextAlignment(ZONE_INFO, align);
-  P.setTextEffect(ZONE_INFO, effect, effect);
-  P.setSpeed(ZONE_INFO, speed);
-  P.displayReset(ZONE_INFO);
+  uint8_t iz = getInfoZone();
+  P.setTextBuffer(iz, pText);
+  P.setTextAlignment(iz, align);
+  P.setTextEffect(iz, effect, effect);
+  P.setSpeed(iz, speed);
+  P.displayReset(iz);
 }
 
 // -----------------------------------------------------------------------------
@@ -290,6 +295,7 @@ void loadConfig() {
     doc[F("sunsetMinute")] = sunsetMinute;
     doc[F("clockOnlyDuringDimming")] = false;
     doc[F("useWideFontForTime")] = true;
+    doc[F("displaySize16")] = false;  // 32x8 default (original single-panel behaviour)
 
     // Add countdown defaults when creating a new config.json
     JsonObject countdownObj = doc.createNestedObject("countdown");
@@ -452,6 +458,16 @@ void loadConfig() {
     Serial.println(F("[CONFIG] Migrated: added useWideFontForTime default (true)."));
   }
 
+  // --- DISPLAY SIZE (32x8 vs 32x16) ---
+  if (doc.containsKey("displaySize16")) {
+    displaySize16 = doc["displaySize16"].as<bool>();
+  } else {
+    displaySize16 = false;
+    doc["displaySize16"] = displaySize16;
+    configChanged = true;
+    Serial.println(F("[CONFIG] Migrated: added displaySize16 default (false = 32x8)."));
+  }
+
   // --- Save migrated config if needed ---
   if (configChanged) {
     Serial.println(F("[CONFIG] Saving migrated config.json"));
@@ -563,8 +579,8 @@ void connectWiFi() {
 
       showingIp = true;
       ipDisplayCount = 0;  // Reset count for IP display
-      P.displayClear(ZONE_INFO);
-      P.setCharSpacing(ZONE_INFO, 1);
+      P.displayClear(getInfoZone());
+      P.setCharSpacing(getInfoZone(), 1);
       textEffect_t actualScrollDirection = getEffectiveScrollDirection(PA_SCROLL_LEFT, flipDisplay);
       startZone1Scroll(pendingIpToShow.c_str(), PA_CENTER, actualScrollDirection, IP_SCROLL_SPEED);
       // --- END IP Display initiation ---
@@ -595,19 +611,21 @@ void connectWiFi() {
       animTimer = now;
       const char *animStr = (animFrame % 3 == 0) ? "# ©" : (animFrame % 3 == 1) ? "# ª" : "# «";
       P.setFont(ZONE_CLOCK, mFactory);
-      P.setFont(ZONE_INFO, mFactory);
+      P.setFont(getInfoZone(), mFactory);
       P.setTextAlignment(ZONE_CLOCK, PA_CENTER);
       P.setCharSpacing(ZONE_CLOCK, 0);
       P.setTextBuffer(ZONE_CLOCK, animStr);
       P.setTextEffect(ZONE_CLOCK, PA_PRINT, PA_NO_EFFECT);
       P.displayReset(ZONE_CLOCK);
-      P.setTextAlignment(ZONE_INFO, PA_CENTER);
-      P.setCharSpacing(ZONE_INFO, 0);
-      P.setTextBuffer(ZONE_INFO, animStr);
-      P.setTextEffect(ZONE_INFO, PA_PRINT, PA_NO_EFFECT);
-      P.displayReset(ZONE_INFO);
+      P.setTextAlignment(getInfoZone(), PA_CENTER);
+      P.setCharSpacing(getInfoZone(), 0);
+      P.setTextBuffer(getInfoZone(), animStr);
+      P.setTextEffect(getInfoZone(), PA_PRINT, PA_NO_EFFECT);
+      P.displayReset(getInfoZone());
       animFrame++;
     }
+    // Must call displayAnimate() so the matrix actually shows the WiFi animation (both 4-panel and 8-panel).
+    P.displayAnimate();
     yield();
   }
 }
@@ -879,6 +897,8 @@ void setupWebServer() {
         doc[n] = (v == "true" || v == "on" || v == "1");
       } else if (n == "useWideFontForTime") {
         doc[n] = (v == "true" || v == "on" || v == "1");
+      } else if (n == "displaySize16") {
+        doc[n] = (v == "true" || v == "on" || v == "1");
       } else if (n == "weatherUnits") doc[n] = v;
 
       else if (n == "password") {
@@ -1135,8 +1155,10 @@ void setupWebServer() {
     flipDisplay = flip;
     P.setZoneEffect(ZONE_CLOCK, flipDisplay, PA_FLIP_UD);
     P.setZoneEffect(ZONE_CLOCK, flipDisplay, PA_FLIP_LR);
-    P.setZoneEffect(ZONE_INFO, flipDisplay, PA_FLIP_UD);
-    P.setZoneEffect(ZONE_INFO, flipDisplay, PA_FLIP_LR);
+    if (displaySize16) {
+      P.setZoneEffect(ZONE_INFO, flipDisplay, PA_FLIP_UD);
+      P.setZoneEffect(ZONE_INFO, flipDisplay, PA_FLIP_LR);
+    }
     Serial.printf("[WEBSERVER] Set flipDisplay to %d\n", flipDisplay);
     request->send(200, "application/json", "{\"ok\":true}");
   });
@@ -2409,19 +2431,22 @@ void setup() {
   Serial.println(F("[SETUP] LittleFS file system mounted successfully."));
   loadUptime();
   ensureHtmlFileExists();
-  P.begin(2);  // Two zones: clock (0-3), info (4-7)
+  loadConfig();  // Load before display init so displaySize16 is known for P.begin()
+
+  P.begin(displaySize16 ? 2 : 1);  // 1 zone for 32x8 (4 panels), 2 zones for 32x16 (8 panels)
   P.setZone(ZONE_CLOCK, 0, 3);
-  P.setZone(ZONE_INFO, 4, 7);
+  if (displaySize16) P.setZone(ZONE_INFO, 4, 7);
 
   P.setCharSpacing(0);
   P.setFont(mFactory);
-  loadConfig();  // This function now has internal yields and prints
 
   P.setIntensity(brightness);
   P.setZoneEffect(ZONE_CLOCK, flipDisplay, PA_FLIP_UD);
   P.setZoneEffect(ZONE_CLOCK, flipDisplay, PA_FLIP_LR);
-  P.setZoneEffect(ZONE_INFO, flipDisplay, PA_FLIP_UD);
-  P.setZoneEffect(ZONE_INFO, flipDisplay, PA_FLIP_LR);
+  if (displaySize16) {
+    P.setZoneEffect(ZONE_INFO, flipDisplay, PA_FLIP_UD);
+    P.setZoneEffect(ZONE_INFO, flipDisplay, PA_FLIP_LR);
+  }
 
   Serial.println(F("[SETUP] Parola (LED Matrix) initialized"));
 
@@ -2676,6 +2701,10 @@ void advanceDisplayMode() {
     displayMode = 6;
     Serial.println(F("[DISPLAY] Custom Message display before returning to CLOCK"));
   }
+  // 4-panel: reset so next time we enter clock we do scroll-in again (the zone-0 block only runs when displayMode==0, so we must reset here).
+  if (!displaySize16 && oldMode == 0 && displayMode != 0) {
+    clockScrollDone = false;
+  }
   lastSwitch = millis();
 }
 
@@ -2790,17 +2819,17 @@ void loop() {
     }
     const char *apStr = (apAnimFrame % 3 == 0) ? "= ©" : (apAnimFrame % 3 == 1) ? "= ª" : "= «";
     P.setFont(ZONE_CLOCK, mFactory);
-    P.setFont(ZONE_INFO, mFactory);
+    P.setFont(getInfoZone(), mFactory);
     P.setTextAlignment(ZONE_CLOCK, PA_CENTER);
     P.setCharSpacing(ZONE_CLOCK, 0);
     P.setTextBuffer(ZONE_CLOCK, apStr);
     P.setTextEffect(ZONE_CLOCK, PA_PRINT, PA_NO_EFFECT);
     P.displayReset(ZONE_CLOCK);
-    P.setTextAlignment(ZONE_INFO, PA_CENTER);
-    P.setCharSpacing(ZONE_INFO, 0);
-    P.setTextBuffer(ZONE_INFO, apStr);
-    P.setTextEffect(ZONE_INFO, PA_PRINT, PA_NO_EFFECT);
-    P.displayReset(ZONE_INFO);
+    P.setTextAlignment(getInfoZone(), PA_CENTER);
+    P.setCharSpacing(getInfoZone(), 0);
+    P.setTextBuffer(getInfoZone(), apStr);
+    P.setTextEffect(getInfoZone(), PA_PRINT, PA_NO_EFFECT);
+    P.displayReset(getInfoZone());
     yield();
     return;
   }
@@ -2910,14 +2939,14 @@ void loop() {
 
   // --- IP Display (zone 1 only) ---
   if (showingIp) {
-    if (P.getZoneStatus(ZONE_INFO)) {
+    if (P.getZoneStatus(getInfoZone())) {
       ipDisplayCount++;
       if (ipDisplayCount < ipDisplayMax) {
         textEffect_t actualScrollDirection = getEffectiveScrollDirection(PA_SCROLL_LEFT, flipDisplay);
         startZone1Scroll(pendingIpToShow.c_str(), PA_CENTER, actualScrollDirection, 120);
       } else {
         showingIp = false;
-        P.displayClear(ZONE_INFO);
+        P.displayClear(getInfoZone());
         delay(500);
         displayMode = 0;
         lastSwitch = millis();
@@ -3008,7 +3037,10 @@ void loop() {
 
   // Only advance mode by timer for clock/weather, not description!
   // With 8-panel split, time is always on top; use short interval for "clock" phase so lower panel cycles continuously.
-  unsigned long displayDuration = (displayMode == 0) ? LOWER_PANEL_CYCLE_INTERVAL_MS : weatherDuration;
+  // 32x16: time always on top; use short interval for "clock" phase. 32x8: use full clockDuration.
+  unsigned long displayDuration = (displayMode == 0)
+    ? (displaySize16 ? LOWER_PANEL_CYCLE_INTERVAL_MS : clockDuration)
+    : weatherDuration;
   if ((displayMode == 0 || displayMode == 1) && millis() - lastSwitch > displayDuration) {
     advanceDisplayMode();
   }
@@ -3079,18 +3111,6 @@ void loop() {
     formattedTime = String(timeSpacedStr);
   }
 
-  unsigned long currentDisplayDuration = 0;
-  if (displayMode == 0) {
-    currentDisplayDuration = LOWER_PANEL_CYCLE_INTERVAL_MS;  // Time on top; lower panel cycles continuously
-  } else if (displayMode == 1) {  // Weather
-    currentDisplayDuration = weatherDuration;
-  }
-
-  // Only advance mode by timer for clock/weather static (Mode 0 & 1).
-  if ((displayMode == 0 || displayMode == 1) && (millis() - lastSwitch > currentDisplayDuration)) {
-    advanceDisplayMode();
-  }
-
   // --- Zone 0 (first 4 modules): always show time / sync / error ---
   String timeString = formattedTime;
   if (showDayOfWeek && colonBlinkEnabled && !colonVisible) {
@@ -3115,6 +3135,10 @@ void loop() {
     }
   }
 
+  // Zone 0: in 32x16 always show time; in 32x8 show time only when displayMode==0 (otherwise info uses zone 0).
+  if (displaySize16 || displayMode == 0) {
+  // Library keeps a pointer to the buffer; use static so it stays valid after this block.
+  static char zone0Buffer[48];
   String zone0Content;
   if (ntpState == NTP_SYNCING) {
     zone0Content = (ntpAnimFrame % 3 == 0) ? "S Y N C ®" : (ntpAnimFrame % 3 == 1) ? "S Y N C ¯" : "S Y N C º";
@@ -3123,54 +3147,66 @@ void loop() {
   } else {
     zone0Content = timeString;  // Always time when NTP ok; weather error (TEMP) shown on lower panel only
   }
+  zone0Content.toCharArray(zone0Buffer, sizeof(zone0Buffer));
 
-  // Use library default (wider) font for zone 0 only when showing plain HH:MM and setting enabled; otherwise mFactory (NTP icons, day, seconds).
+  // In 4-panel always use mFactory (never wide). In 8-panel use wide only when option enabled and plain HH:MM.
   bool zone0SimpleHHMM = (ntpState != NTP_SYNCING && ntpSyncSuccessful && !showDayOfWeek && !colonBlinkEnabled);
-  if (zone0SimpleHHMM && useWideFontForTime) {
-    P.setFont(ZONE_CLOCK, nullptr);  // default font = wider
+  if (!displaySize16) {
+    P.setFont(ZONE_CLOCK, mFactory);  // 4-panel: always custom font
+  } else if (zone0SimpleHHMM && useWideFontForTime) {
+    P.setFont(ZONE_CLOCK, nullptr);  // 8-panel: wider font when enabled
   } else {
-    P.setFont(ZONE_CLOCK, mFactory);  // custom font for NTP error/sync and for time with day/seconds
+    P.setFont(ZONE_CLOCK, mFactory);
   }
 
-  bool doingScrollIn = (displayMode == 0 && (prevDisplayMode == -1 || prevDisplayMode == 3 || prevDisplayMode == 4 || (prevDisplayMode == 2 && weatherDescription.length() > 8) || prevDisplayMode == 6) && !clockScrollDone);
-  if (!doingScrollIn && zone0Content != lastZone0Content) {
+  // 4-panel: scroll-in time every time we enter clock from any other mode (original behaviour). 8-panel: no scroll for time on upper row.
+  bool doingScrollIn = (displayMode == 0 && !displaySize16 && prevDisplayMode != 0 && !clockScrollDone);
+  // In 8-panel always refresh zone 0; in 4-panel always refresh when in clock mode so time stays visible (library needs persistent buffer).
+  if (!doingScrollIn && (zone0Content != lastZone0Content || displaySize16 || (!displaySize16 && displayMode == 0))) {
     lastZone0Content = zone0Content;
     P.setCharSpacing(ZONE_CLOCK, 0);
     P.setTextAlignment(ZONE_CLOCK, PA_CENTER);
-    P.setTextBuffer(ZONE_CLOCK, zone0Content.c_str());
+    P.setTextBuffer(ZONE_CLOCK, zone0Buffer);
     P.setTextEffect(ZONE_CLOCK, PA_PRINT, PA_NO_EFFECT);
     P.displayReset(ZONE_CLOCK);
   }
 
-  // --- CLOCK Display Mode: scroll-in on zone 0 when entering from other modes ---
+  // --- CLOCK Display Mode: scroll-in on zone 0 only in 4-panel when entering from other modes (every cycle, like original); 8-panel upper panel stays static ---
   if (displayMode == 0) {
-    bool shouldScrollIn = (prevDisplayMode == -1 || prevDisplayMode == 3 || prevDisplayMode == 4 || (prevDisplayMode == 2 && weatherDescription.length() > 8) || prevDisplayMode == 6);
-    if (shouldScrollIn && !clockScrollDone) {
-      if (zone0SimpleHHMM && useWideFontForTime) {
-        P.setFont(ZONE_CLOCK, nullptr);
-      } else {
-        P.setFont(ZONE_CLOCK, mFactory);
-      }
+    bool shouldScrollIn = !displaySize16 && (prevDisplayMode != 0 && !clockScrollDone);
+    if (shouldScrollIn) {
+      // 4-panel: do scroll-in animation (same API as startZone1Scroll so scroll actually runs).
+      P.displayClear(ZONE_CLOCK);
+      P.setFont(ZONE_CLOCK, mFactory);
+      P.setCharSpacing(ZONE_CLOCK, 0);
+      P.setTextAlignment(ZONE_CLOCK, PA_CENTER);
+      P.setTextBuffer(ZONE_CLOCK, zone0Buffer);
       textEffect_t inDir = getEffectiveScrollDirection(PA_SCROLL_LEFT, flipDisplay);
-      P.displayZoneText(ZONE_CLOCK, timeString.c_str(), PA_CENTER, GENERAL_SCROLL_SPEED, 0, inDir, PA_NO_EFFECT);
+      P.setTextEffect(ZONE_CLOCK, inDir, PA_NO_EFFECT);
+      P.setSpeed(ZONE_CLOCK, GENERAL_SCROLL_SPEED);
+      P.displayReset(ZONE_CLOCK);
       while (!P.getZoneStatus(ZONE_CLOCK)) {
         P.displayAnimate();
         yield();
       }
+      // After scroll: set zone 0 to static time.
+      lastZone0Content = timeString;
+      P.setCharSpacing(ZONE_CLOCK, 0);
+      P.setTextAlignment(ZONE_CLOCK, PA_CENTER);
+      P.setTextBuffer(ZONE_CLOCK, zone0Buffer);
+      P.setTextEffect(ZONE_CLOCK, PA_PRINT, PA_NO_EFFECT);
+      P.displayReset(ZONE_CLOCK);
       clockScrollDone = true;
     }
     yield();
-  } else {
-    if (prevDisplayMode == 0) {
-      clockScrollDone = false;
-    }
+  }
   }
 
-  // --- WEATHER Display Mode (zone 1 only) ---
+  // --- WEATHER Display Mode (info zone) ---
   static bool weatherWasAvailable = false;
   static char weatherZone1Buffer[32];  // Persistent buffer for setTextBuffer (library keeps pointer)
   if (displayMode == 1) {
-    P.setCharSpacing(ZONE_INFO, 1);
+    P.setCharSpacing(getInfoZone(), 1);
     if (weatherAvailable) {
       String weatherDisplay;
       if (showHumidity && currentHumidity != -1) {
@@ -3180,21 +3216,21 @@ void loop() {
         weatherDisplay = currentTemp + tempSymbol;
       }
       weatherDisplay.toCharArray(weatherZone1Buffer, sizeof(weatherZone1Buffer));
-      P.setTextAlignment(ZONE_INFO, PA_CENTER);
-      P.setTextBuffer(ZONE_INFO, weatherZone1Buffer);
-      P.setTextEffect(ZONE_INFO, PA_PRINT, PA_NO_EFFECT);
-      P.displayReset(ZONE_INFO);
+      P.setTextAlignment(getInfoZone(), PA_CENTER);
+      P.setTextBuffer(getInfoZone(), weatherZone1Buffer);
+      P.setTextEffect(getInfoZone(), PA_PRINT, PA_NO_EFFECT);
+      P.displayReset(getInfoZone());
       weatherWasAvailable = true;
     } else {
       if (weatherWasAvailable) {
         Serial.println(F("[DISPLAY] Weather not available"));
         weatherWasAvailable = false;
       }
-      P.setCharSpacing(ZONE_INFO, 0);
-      P.setTextAlignment(ZONE_INFO, PA_CENTER);
-      P.setTextBuffer(ZONE_INFO, "(*");
-      P.setTextEffect(ZONE_INFO, PA_PRINT, PA_NO_EFFECT);
-      P.displayReset(ZONE_INFO);
+      P.setCharSpacing(getInfoZone(), 0);
+      P.setTextAlignment(getInfoZone(), PA_CENTER);
+      P.setTextBuffer(getInfoZone(), "(*");
+      P.setTextEffect(getInfoZone(), PA_PRINT, PA_NO_EFFECT);
+      P.displayReset(getInfoZone());
     }
     P.displayAnimate();  // Keep zone 0 (clock) and zone 1 updating every iteration
     yield();
@@ -3222,7 +3258,7 @@ void loop() {
         descScrolling = true;
         descScrollEndTime = 0;
       }
-      if (P.getZoneStatus(ZONE_INFO)) {
+      if (P.getZoneStatus(getInfoZone())) {
         if (descScrollEndTime == 0) {
           descScrollEndTime = millis();
         }
@@ -3239,11 +3275,11 @@ void loop() {
       return;
     } else {
       if (descStartTime == 0) {
-        P.setTextAlignment(ZONE_INFO, PA_CENTER);
-        P.setCharSpacing(ZONE_INFO, 1);
-        P.setTextBuffer(ZONE_INFO, descBuffer);
-        P.setTextEffect(ZONE_INFO, PA_PRINT, PA_NO_EFFECT);
-        P.displayReset(ZONE_INFO);
+        P.setTextAlignment(getInfoZone(), PA_CENTER);
+        P.setCharSpacing(getInfoZone(), 1);
+        P.setTextBuffer(getInfoZone(), descBuffer);
+        P.setTextEffect(getInfoZone(), PA_PRINT, PA_NO_EFFECT);
+        P.displayReset(getInfoZone());
         descStartTime = millis();
       }
       if (millis() - descStartTime > descriptionDuration) {
@@ -3298,25 +3334,25 @@ void loop() {
         const char *hourglassFrames[] = { "¡", "¢", "£", "¤" };
         for (int repeat = 0; repeat < 3; repeat++) {
           for (int i = 0; i < 4; i++) {
-            P.setTextAlignment(ZONE_INFO, PA_CENTER);
-            P.setCharSpacing(ZONE_INFO, 0);
-            P.setTextBuffer(ZONE_INFO, hourglassFrames[i]);
-            P.setTextEffect(ZONE_INFO, PA_PRINT, PA_NO_EFFECT);
-            P.displayReset(ZONE_INFO);
+            P.setTextAlignment(getInfoZone(), PA_CENTER);
+            P.setCharSpacing(getInfoZone(), 0);
+            P.setTextBuffer(getInfoZone(), hourglassFrames[i]);
+            P.setTextEffect(getInfoZone(), PA_PRINT, PA_NO_EFFECT);
+            P.displayReset(getInfoZone());
             delay(350);  // This is blocking! (Total ~4.2 seconds for hourglass)
           }
         }
         Serial.println("[COUNTDOWN-FINISH] Played hourglass animation.");
-        P.displayClear(ZONE_INFO);
+        P.displayClear(getInfoZone());
 
         // 2. Initialize Flashing "TIMES UP" for its very first frame
         flashingMessageFrame = 0;
         lastFlashingSwitch = millis();  // Set initial time for first flash frame
-        P.setTextAlignment(ZONE_INFO, PA_CENTER);
-        P.setCharSpacing(ZONE_INFO, 0);
-        P.setTextBuffer(ZONE_INFO, flashFrames[flashingMessageFrame]);
-        P.setTextEffect(ZONE_INFO, PA_PRINT, PA_NO_EFFECT);
-        P.displayReset(ZONE_INFO);
+        P.setTextAlignment(getInfoZone(), PA_CENTER);
+        P.setCharSpacing(getInfoZone(), 0);
+        P.setTextBuffer(getInfoZone(), flashFrames[flashingMessageFrame]);
+        P.setTextEffect(getInfoZone(), PA_PRINT, PA_NO_EFFECT);
+        P.displayReset(getInfoZone());
         flashingMessageFrame = (flashingMessageFrame + 1) % 2;  // Prepare for the next frame
 
         hourglassPlayed = true;  // <-- Mark that this initial combined sequence has completed!
@@ -3328,12 +3364,12 @@ void loop() {
       if (millis() - countdownFinishedMessageStartTime < 15000) {  // Flashing duration
         if (millis() - lastFlashingSwitch >= 500) {                // Check for flashing interval
           lastFlashingSwitch = millis();
-          P.displayClear(ZONE_INFO);
-          P.setTextAlignment(ZONE_INFO, PA_CENTER);
-          P.setCharSpacing(ZONE_INFO, 0);
-          P.setTextBuffer(ZONE_INFO, flashFrames[flashingMessageFrame]);
-          P.setTextEffect(ZONE_INFO, PA_PRINT, PA_NO_EFFECT);
-          P.displayReset(ZONE_INFO);
+          P.displayClear(getInfoZone());
+          P.setTextAlignment(getInfoZone(), PA_CENTER);
+          P.setCharSpacing(getInfoZone(), 0);
+          P.setTextBuffer(getInfoZone(), flashFrames[flashingMessageFrame]);
+          P.setTextEffect(getInfoZone(), PA_PRINT, PA_NO_EFFECT);
+          P.displayReset(getInfoZone());
           flashingMessageFrame = (flashingMessageFrame + 1) % 2;
         }
         P.displayAnimate();
@@ -3352,7 +3388,7 @@ void loop() {
         countdownLabel[0] = '\0';
         saveCountdownConfig(false, 0, "");
 
-        P.setInvert(ZONE_INFO, false);
+        P.setInvert(getInfoZone(), false);
         advanceDisplayMode();
         yield();
         return;  // Exit loop after processing
@@ -3375,7 +3411,7 @@ void loop() {
 
         if (segmentStartTime == 0 || (millis() - segmentStartTime > SEGMENT_DISPLAY_DURATION)) {
           segmentStartTime = millis();
-          P.displayClear(ZONE_INFO);
+          P.displayClear(getInfoZone());
 
           switch (countdownSegment) {
             case 0:  // Days
@@ -3418,24 +3454,24 @@ void loop() {
                 sprintf(secondsBuf, "%02ld %s", currentSecond, currentSecond == 1 ? "SEC" : "SECS");
                 String secondsText = String(secondsBuf);
                 Serial.printf("[COUNTDOWN-STATIC] Displaying segment 3: %s\n", secondsText.c_str());
-                P.displayClear(ZONE_INFO);
-                P.setTextAlignment(ZONE_INFO, PA_CENTER);
-                P.setCharSpacing(ZONE_INFO, 1);
-                P.setTextBuffer(ZONE_INFO, secondsText.c_str());
-                P.setTextEffect(ZONE_INFO, PA_PRINT, PA_NO_EFFECT);
-                P.displayReset(ZONE_INFO);
+                P.displayClear(getInfoZone());
+                P.setTextAlignment(getInfoZone(), PA_CENTER);
+                P.setCharSpacing(getInfoZone(), 1);
+                P.setTextBuffer(getInfoZone(), secondsText.c_str());
+                P.setTextEffect(getInfoZone(), PA_PRINT, PA_NO_EFFECT);
+                P.displayReset(getInfoZone());
                 delay(SEGMENT_DISPLAY_DURATION - 400);
 
                 unsigned long elapsed = millis() - segmentStartMillis;
                 long adjustedSecond = (countdownTargetTimestamp - segmentStartTime - (elapsed / 1000)) % 60;
                 sprintf(secondsBuf, "%02ld %s", adjustedSecond, adjustedSecond == 1 ? "SEC" : "SECS");
                 secondsText = String(secondsBuf);
-                P.displayClear(ZONE_INFO);
-                P.setTextAlignment(ZONE_INFO, PA_CENTER);
-                P.setCharSpacing(ZONE_INFO, 1);
-                P.setTextBuffer(ZONE_INFO, secondsText.c_str());
-                P.setTextEffect(ZONE_INFO, PA_PRINT, PA_NO_EFFECT);
-                P.displayReset(ZONE_INFO);
+                P.displayClear(getInfoZone());
+                P.setTextAlignment(getInfoZone(), PA_CENTER);
+                P.setCharSpacing(getInfoZone(), 1);
+                P.setTextBuffer(getInfoZone(), secondsText.c_str());
+                P.setTextEffect(getInfoZone(), PA_PRINT, PA_NO_EFFECT);
+                P.displayReset(getInfoZone());
                 delay(400);
 
                 String label;
@@ -3456,12 +3492,12 @@ void loop() {
                   label = fallbackLabels[randomIndex];
                 }
 
-                P.setTextAlignment(ZONE_INFO, PA_LEFT);
-                P.setCharSpacing(ZONE_INFO, 1);
+                P.setTextAlignment(getInfoZone(), PA_LEFT);
+                P.setCharSpacing(getInfoZone(), 1);
                 textEffect_t actualScrollDirection = getEffectiveScrollDirection(PA_SCROLL_LEFT, flipDisplay);
                 startZone1Scroll(label.c_str(), PA_LEFT, actualScrollDirection, GENERAL_SCROLL_SPEED);
 
-                while (!P.getZoneStatus(ZONE_INFO)) {
+                while (!P.getZoneStatus(getInfoZone())) {
                   P.displayAnimate();
                   yield();
                 }
@@ -3473,8 +3509,8 @@ void loop() {
               Serial.println("[COUNTDOWN-STATIC] All segments and label displayed. Advancing to Clock.");
               countdownSegment = 0;
               segmentStartTime = 0;
-              P.setTextAlignment(ZONE_INFO, PA_CENTER);
-              P.setCharSpacing(ZONE_INFO, 1);
+              P.setTextAlignment(getInfoZone(), PA_CENTER);
+              P.setCharSpacing(getInfoZone(), 1);
               advanceDisplayMode();
               yield();
               return;
@@ -3487,11 +3523,11 @@ void loop() {
           }
 
           if (currentSegmentText.length() > 0) {
-            P.setTextAlignment(ZONE_INFO, PA_CENTER);
-            P.setCharSpacing(ZONE_INFO, 1);
-            P.setTextBuffer(ZONE_INFO, currentSegmentText.c_str());
-            P.setTextEffect(ZONE_INFO, PA_PRINT, PA_NO_EFFECT);
-            P.displayReset(ZONE_INFO);
+            P.setTextAlignment(getInfoZone(), PA_CENTER);
+            P.setCharSpacing(getInfoZone(), 1);
+            P.setTextBuffer(getInfoZone(), currentSegmentText.c_str());
+            P.setTextEffect(getInfoZone(), PA_PRINT, PA_NO_EFFECT);
+            P.displayReset(getInfoZone());
           }
         }
         P.displayAnimate();
@@ -3552,25 +3588,25 @@ void loop() {
         }
 
         // Display the full string and scroll it on zone 1
-        P.setTextAlignment(ZONE_INFO, PA_LEFT);
-        P.setCharSpacing(ZONE_INFO, 1);
+        P.setTextAlignment(getInfoZone(), PA_LEFT);
+        P.setCharSpacing(getInfoZone(), 1);
         textEffect_t actualScrollDirection = getEffectiveScrollDirection(PA_SCROLL_LEFT, flipDisplay);
         startZone1Scroll(fullString.c_str(), PA_LEFT, actualScrollDirection, GENERAL_SCROLL_SPEED);
 
-        while (!P.getZoneStatus(ZONE_INFO)) {
+        while (!P.getZoneStatus(getInfoZone())) {
           P.displayAnimate();
           yield();
         }
 
-        P.setTextAlignment(ZONE_INFO, PA_CENTER);
+        P.setTextAlignment(getInfoZone(), PA_CENTER);
         advanceDisplayMode();
         yield();
         return;
       }
     }
 
-    P.setTextAlignment(ZONE_INFO, PA_CENTER);
-    P.setCharSpacing(ZONE_INFO, 1);
+    P.setTextAlignment(getInfoZone(), PA_CENTER);
+    P.setCharSpacing(getInfoZone(), 1);
     yield();
     return;
   }  // End of if (displayMode == 3 && ...)
@@ -3712,25 +3748,25 @@ void loop() {
         displayText += char(255);
         displayText += " ";  // extra space
         displayText += arrow;
-        P.setCharSpacing(ZONE_INFO, 0);
+        P.setCharSpacing(getInfoZone(), 0);
       } else {
         displayText += String(currentGlucose) + String(arrow);
-        P.setCharSpacing(ZONE_INFO, 1);
+        P.setCharSpacing(getInfoZone(), 1);
       }
 
-      P.setTextAlignment(ZONE_INFO, PA_CENTER);
-      P.setTextBuffer(ZONE_INFO, displayText.c_str());
-      P.setTextEffect(ZONE_INFO, PA_PRINT, PA_NO_EFFECT);
-      P.displayReset(ZONE_INFO);
+      P.setTextAlignment(getInfoZone(), PA_CENTER);
+      P.setTextBuffer(getInfoZone(), displayText.c_str());
+      P.setTextEffect(getInfoZone(), PA_PRINT, PA_NO_EFFECT);
+      P.displayReset(getInfoZone());
       delay(weatherDuration);
       advanceDisplayMode();
       return;
     } else {
-      P.setTextAlignment(ZONE_INFO, PA_CENTER);
-      P.setCharSpacing(ZONE_INFO, 0);
-      P.setTextBuffer(ZONE_INFO, "())");
-      P.setTextEffect(ZONE_INFO, PA_PRINT, PA_NO_EFFECT);
-      P.displayReset(ZONE_INFO);
+      P.setTextAlignment(getInfoZone(), PA_CENTER);
+      P.setCharSpacing(getInfoZone(), 0);
+      P.setTextBuffer(getInfoZone(), "())");
+      P.setTextEffect(getInfoZone(), PA_PRINT, PA_NO_EFFECT);
+      P.displayReset(getInfoZone());
       delay(2000);
       advanceDisplayMode();
       return;
@@ -3822,11 +3858,11 @@ void loop() {
     }
 
     dateString.toCharArray(dateZone1Buffer, sizeof(dateZone1Buffer));
-    P.setTextAlignment(ZONE_INFO, PA_CENTER);
-    P.setCharSpacing(ZONE_INFO, 0);
-    P.setTextBuffer(ZONE_INFO, dateZone1Buffer);
-    P.setTextEffect(ZONE_INFO, PA_PRINT, PA_NO_EFFECT);
-    P.displayReset(ZONE_INFO);
+    P.setTextAlignment(getInfoZone(), PA_CENTER);
+    P.setCharSpacing(getInfoZone(), 0);
+    P.setTextBuffer(getInfoZone(), dateZone1Buffer);
+    P.setTextEffect(getInfoZone(), PA_PRINT, PA_NO_EFFECT);
+    P.displayReset(getInfoZone());
 
     if (millis() - lastSwitch > weatherDuration) {
       advanceDisplayMode();
@@ -3918,11 +3954,11 @@ void loop() {
 
       Serial.printf("[MESSAGE] Displaying timed short message: '%s' for %lu ms. Advancing mode.\n", customMessage, durationMs);
 
-      P.setTextAlignment(ZONE_INFO, PA_CENTER);
-      P.setCharSpacing(ZONE_INFO, 1);
-      P.setTextBuffer(ZONE_INFO, msg.c_str());
-      P.setTextEffect(ZONE_INFO, PA_PRINT, PA_NO_EFFECT);
-      P.displayReset(ZONE_INFO);
+      P.setTextAlignment(getInfoZone(), PA_CENTER);
+      P.setCharSpacing(getInfoZone(), 1);
+      P.setTextBuffer(getInfoZone(), msg.c_str());
+      P.setTextEffect(getInfoZone(), PA_PRINT, PA_NO_EFFECT);
+      P.displayReset(getInfoZone());
 
       // Block execution for the specified duration (non-HA uses weatherDuration)
       unsigned long displayUntil = millis() + durationMs;
@@ -3964,14 +4000,14 @@ void loop() {
     }
 
     // --- Display scrolling message on zone 1 ---
-    P.setTextAlignment(ZONE_INFO, PA_LEFT);
-    P.setCharSpacing(ZONE_INFO, 1);
+    P.setTextAlignment(getInfoZone(), PA_LEFT);
+    P.setCharSpacing(getInfoZone(), 1);
     textEffect_t actualScrollDirection = getEffectiveScrollDirection(PA_SCROLL_LEFT, flipDisplay);
     extern int messageScrollSpeed;
 
     startZone1Scroll(msg.c_str(), PA_LEFT, actualScrollDirection, messageScrollSpeed);
 
-    while (!P.getZoneStatus(ZONE_INFO)) {
+    while (!P.getZoneStatus(getInfoZone())) {
       P.displayAnimate();
       yield();
     }
@@ -3985,7 +4021,7 @@ void loop() {
     // If no HA parameters are set, this is a persistent/infinite scroll, so advance mode after 1 scroll cycle.
     // If HA parameters ARE set, the mode relies on the check at the top to break out.
     if (messageDisplaySeconds == 0 && messageScrollTimes == 0) {
-      P.setTextAlignment(ZONE_INFO, PA_CENTER);
+      P.setTextAlignment(getInfoZone(), PA_CENTER);
       advanceDisplayMode();
     }
 
