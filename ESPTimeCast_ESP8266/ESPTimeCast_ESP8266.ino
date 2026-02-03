@@ -2701,6 +2701,10 @@ void advanceDisplayMode() {
     displayMode = 6;
     Serial.println(F("[DISPLAY] Custom Message display before returning to CLOCK"));
   }
+  // 4-panel: reset so next time we enter clock we do scroll-in again (the zone-0 block only runs when displayMode==0, so we must reset here).
+  if (!displaySize16 && oldMode == 0 && displayMode != 0) {
+    clockScrollDone = false;
+  }
   lastSwitch = millis();
 }
 
@@ -3197,10 +3201,6 @@ void loop() {
       clockScrollDone = true;
     }
     yield();
-  } else {
-    if (prevDisplayMode == 0) {
-      clockScrollDone = false;
-    }
   }
   }
 
