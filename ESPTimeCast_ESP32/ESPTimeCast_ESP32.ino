@@ -3178,15 +3178,16 @@ void loop() {
     bool shouldScrollIn = !displaySize16 && (prevDisplayMode != 0 && !clockScrollDone);
     if (shouldScrollIn) {
       if (!displaySize16) {
-        // 4-panel: do scroll-in animation (use same narrow spacing as static so no visual jump).
-        // Clear and reset zone so the new scroll starts cleanly after description/other content was on the same zone.
+        // 4-panel: do scroll-in animation (same API as startZone1Scroll so scroll actually runs).
         P.displayClear(ZONE_CLOCK);
-        P.displayReset(ZONE_CLOCK);
         P.setFont(ZONE_CLOCK, mFactory);
         P.setCharSpacing(ZONE_CLOCK, 0);
         P.setTextAlignment(ZONE_CLOCK, PA_CENTER);
+        P.setTextBuffer(ZONE_CLOCK, zone0Buffer);
         textEffect_t inDir = getEffectiveScrollDirection(PA_SCROLL_LEFT, flipDisplay);
-        P.displayZoneText(ZONE_CLOCK, zone0Buffer, PA_CENTER, GENERAL_SCROLL_SPEED, 0, inDir, PA_NO_EFFECT);
+        P.setTextEffect(ZONE_CLOCK, inDir, PA_NO_EFFECT);
+        P.setSpeed(ZONE_CLOCK, GENERAL_SCROLL_SPEED);
+        P.displayReset(ZONE_CLOCK);
         while (!P.getZoneStatus(ZONE_CLOCK)) {
           P.displayAnimate();
           yield();
