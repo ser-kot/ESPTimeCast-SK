@@ -818,6 +818,7 @@ textarea::placeholder {
 
 <div class="footer">
   Project by: <a href="https://www.instagram.com/mfactory.osaka" target="_blank" rel="noopener noreferrer">M-Factory</a><br>
+  <span style="font-size:0.85em;color:#666;">Fork by Sergey Kotov — two-row (32×16) panel support.</span><br>
   IP: <span id="ipDisplay">Fetching...</span><br>
   Host: <span id="hostnameDisplay">Fetching...</span><br>
   Uptime: <span id="uptimeDisplay">Loading...</span>  

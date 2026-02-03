@@ -119,7 +119,7 @@ int sunriseMinute = 0;
 int sunsetHour = 18;
 int sunsetMinute = 0;
 bool clockOnlyDuringDimming = false;
-bool useWideFontForTime = true;  // When true, use library default (wider) font for plain HH:MM on zone 0
+bool useWideFontForTime = false;  // When true, use library default (wider) font for plain HH:MM on zone 0 (8-panel only)
 bool displaySize16 = false;      // false = 32x8 (4 panels, original behaviour); true = 32x16 (8 panels, two zones)
 
 //Countdown Globals - NEW
@@ -294,7 +294,7 @@ void loadConfig() {
     doc[F("sunsetHour")] = sunsetHour;
     doc[F("sunsetMinute")] = sunsetMinute;
     doc[F("clockOnlyDuringDimming")] = false;
-    doc[F("useWideFontForTime")] = true;
+    doc[F("useWideFontForTime")] = false;
     doc[F("displaySize16")] = false;  // 32x8 default (original single-panel behaviour)
 
     // Add countdown defaults when creating a new config.json
@@ -452,10 +452,10 @@ void loadConfig() {
   if (doc.containsKey("useWideFontForTime")) {
     useWideFontForTime = doc["useWideFontForTime"].as<bool>();
   } else {
-    useWideFontForTime = true;
+    useWideFontForTime = false;
     doc["useWideFontForTime"] = useWideFontForTime;
     configChanged = true;
-    Serial.println(F("[CONFIG] Migrated: added useWideFontForTime default (true)."));
+    Serial.println(F("[CONFIG] Migrated: added useWideFontForTime default (false)."));
   }
 
   // --- DISPLAY SIZE (32x8 vs 32x16) ---
