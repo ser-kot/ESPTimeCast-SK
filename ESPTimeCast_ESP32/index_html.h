@@ -736,6 +736,14 @@ textarea::placeholder {
   </span>
 </label>
 
+<label style="display: flex; align-items: center; justify-content: space-between; margin-top: 0.75rem;">
+  <span style="margin-right: 0.5em;">Wide Font for Time (HH:MM):</span>
+  <span class="toggle-switch">
+    <input type="checkbox" id="useWideFontForTime" name="useWideFontForTime">
+    <span class="toggle-slider"></span>
+  </span>
+</label>
+
 
 <div class="form-row two-col">   
   <div>         
@@ -929,6 +937,10 @@ window.onload = function () {
     // Initialize Clock-only-during-dimming control (depends on dimming fields)
     initClockOnlyDuringDimming(data);
 
+    // Wide font for time (zone 0 plain HH:MM)
+    const useWideFontEl = document.getElementById('useWideFontForTime');
+    if (useWideFontEl) useWideFontEl.checked = !!(data.useWideFontForTime !== false && data.useWideFontForTime !== 'false' && data.useWideFontForTime !== 0);
+
     // Attach listeners (mutually exclusive + API dependency)
     if (apiInputEl) apiInputEl.addEventListener('input', setDimmingFieldsEnabled);
     autoDimmingEl.addEventListener('change', () => {
@@ -1097,6 +1109,7 @@ async function submitConfig(event) {
   formData.set('dimBrightness', document.getElementById('dimBrightness').value);
   formData.set('showWeatherDescription', document.getElementById('showWeatherDescription').checked ? 'on' : '');
   formData.set('weatherUnits', document.getElementById('weatherUnits').checked ? 'imperial' : 'metric');
+  formData.set('useWideFontForTime', document.getElementById('useWideFontForTime').checked ? 'on' : '');
 
   // --- NEW: Countdown Form Data ---
   formData.set('countdownEnabled', document.getElementById('countdownEnabled').checked ? 'true' : 'false');

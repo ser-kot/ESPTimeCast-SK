@@ -118,6 +118,7 @@ int sunriseMinute = 0;
 int sunsetHour = 18;
 int sunsetMinute = 0;
 bool clockOnlyDuringDimming = false;
+bool useWideFontForTime = true;  // When true, use library default (wider) font for plain HH:MM on zone 0
 
 //Countdown Globals
 bool countdownEnabled = false;
@@ -288,6 +289,7 @@ void loadConfig() {
     doc[F("sunsetHour")] = sunsetHour;
     doc[F("sunsetMinute")] = sunsetMinute;
     doc[F("clockOnlyDuringDimming")] = false;
+    doc[F("useWideFontForTime")] = true;
 
     // Add countdown defaults when creating a new config.json
     JsonObject countdownObj = doc.createNestedObject("countdown");
@@ -441,6 +443,16 @@ void loadConfig() {
     doc["clockOnlyDuringDimming"] = clockOnlyDuringDimming;
     configChanged = true;
     Serial.println(F("[CONFIG] Migrated: added clockOnlyDuringDimming default."));
+  }
+
+  // --- USE-WIDE-FONT-FOR-TIME (zone 0 plain HH:MM) ---
+  if (doc.containsKey("useWideFontForTime")) {
+    useWideFontForTime = doc["useWideFontForTime"].as<bool>();
+  } else {
+    useWideFontForTime = true;
+    doc["useWideFontForTime"] = useWideFontForTime;
+    configChanged = true;
+    Serial.println(F("[CONFIG] Migrated: added useWideFontForTime default (true)."));
   }
 
   // --- Save migrated config if needed ---
@@ -867,6 +879,8 @@ void setupWebServer() {
       } else if (n == "showWeatherDescription") doc[n] = (v == "true" || v == "on" || v == "1");
       else if (n == "dimmingEnabled") doc[n] = (v == "true" || v == "on" || v == "1");
       else if (n == "clockOnlyDuringDimming") {
+        doc[n] = (v == "true" || v == "on" || v == "1");
+      } else if (n == "useWideFontForTime") {
         doc[n] = (v == "true" || v == "on" || v == "1");
       } else if (n == "weatherUnits") doc[n] = v;
 
@@ -3119,9 +3133,9 @@ void loop() {
     zone0Content = timeString;  // Always time when NTP ok; weather error (TEMP) shown on lower panel only
   }
 
-  // Use library default (wider) font for zone 0 only when showing plain HH:MM time; otherwise mFactory (NTP icons, day, seconds).
+  // Use library default (wider) font for zone 0 only when showing plain HH:MM and setting enabled; otherwise mFactory (NTP icons, day, seconds).
   bool zone0SimpleHHMM = (ntpState != NTP_SYNCING && ntpSyncSuccessful && !showDayOfWeek && !colonBlinkEnabled);
-  if (zone0SimpleHHMM) {
+  if (zone0SimpleHHMM && useWideFontForTime) {
     P.setFont(ZONE_CLOCK, nullptr);  // default font = wider
   } else {
     P.setFont(ZONE_CLOCK, mFactory);  // custom font for NTP error/sync and for time with day/seconds
@@ -3141,7 +3155,7 @@ void loop() {
   if (displayMode == 0) {
     bool shouldScrollIn = (prevDisplayMode == -1 || prevDisplayMode == 3 || prevDisplayMode == 4 || (prevDisplayMode == 2 && weatherDescription.length() > 8) || prevDisplayMode == 6);
     if (shouldScrollIn && !clockScrollDone) {
-      if (zone0SimpleHHMM) {
+      if (zone0SimpleHHMM && useWideFontForTime) {
         P.setFont(ZONE_CLOCK, nullptr);
       } else {
         P.setFont(ZONE_CLOCK, mFactory);
