@@ -3174,6 +3174,13 @@ void loop() {
         P.displayAnimate();
         yield();
       }
+      // After scroll completes, set zone 0 to static time so it stays visible (library does not hold it by default).
+      lastZone0Content = timeString;
+      P.setCharSpacing(ZONE_CLOCK, 0);
+      P.setTextAlignment(ZONE_CLOCK, PA_CENTER);
+      P.setTextBuffer(ZONE_CLOCK, timeString.c_str());
+      P.setTextEffect(ZONE_CLOCK, PA_PRINT, PA_NO_EFFECT);
+      P.displayReset(ZONE_CLOCK);
       clockScrollDone = true;
     }
     yield();

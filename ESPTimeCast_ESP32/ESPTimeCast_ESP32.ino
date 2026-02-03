@@ -3111,18 +3111,6 @@ void loop() {
     formattedTime = String(timeSpacedStr);
   }
 
-  unsigned long currentDisplayDuration = 0;
-  if (displayMode == 0) {
-    currentDisplayDuration = LOWER_PANEL_CYCLE_INTERVAL_MS;  // Time on top; lower panel cycles continuously
-  } else if (displayMode == 1) {  // Weather
-    currentDisplayDuration = weatherDuration;
-  }
-
-  // Only advance mode by timer for clock/weather static (Mode 0 & 1).
-  if ((displayMode == 0 || displayMode == 1) && (millis() - lastSwitch > currentDisplayDuration)) {
-    advanceDisplayMode();
-  }
-
   // --- Zone 0 (first 4 modules): always show time / sync / error ---
   String timeString = formattedTime;
   if (showDayOfWeek && colonBlinkEnabled && !colonVisible) {
@@ -3192,6 +3180,13 @@ void loop() {
         P.displayAnimate();
         yield();
       }
+      // After scroll completes, set zone 0 to static time so it stays visible (library does not hold it by default).
+      lastZone0Content = timeString;
+      P.setCharSpacing(ZONE_CLOCK, 0);
+      P.setTextAlignment(ZONE_CLOCK, PA_CENTER);
+      P.setTextBuffer(ZONE_CLOCK, timeString.c_str());
+      P.setTextEffect(ZONE_CLOCK, PA_PRINT, PA_NO_EFFECT);
+      P.displayReset(ZONE_CLOCK);
       clockScrollDone = true;
     }
     yield();
