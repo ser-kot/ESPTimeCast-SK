@@ -624,6 +624,8 @@ void connectWiFi() {
       P.displayReset(getInfoZone());
       animFrame++;
     }
+    // Must call displayAnimate() so the matrix actually shows the WiFi animation (both 4-panel and 8-panel).
+    P.displayAnimate();
     yield();
   }
 }
