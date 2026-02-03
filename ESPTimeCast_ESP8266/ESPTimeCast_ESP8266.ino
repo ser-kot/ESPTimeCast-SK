@@ -3131,6 +3131,8 @@ void loop() {
 
   // Zone 0: in 32x16 always show time; in 32x8 show time only when displayMode==0 (otherwise info uses zone 0).
   if (displaySize16 || displayMode == 0) {
+  // Library keeps a pointer to the buffer; use static so it stays valid after this block.
+  static char zone0Buffer[48];
   String zone0Content;
   if (ntpState == NTP_SYNCING) {
     zone0Content = (ntpAnimFrame % 3 == 0) ? "S Y N C ®" : (ntpAnimFrame % 3 == 1) ? "S Y N C ¯" : "S Y N C º";
@@ -3139,22 +3141,25 @@ void loop() {
   } else {
     zone0Content = timeString;  // Always time when NTP ok; weather error (TEMP) shown on lower panel only
   }
+  zone0Content.toCharArray(zone0Buffer, sizeof(zone0Buffer));
 
-  // Use library default (wider) font for zone 0 only when 8-panel, plain HH:MM, and setting enabled; in 4-panel never use wide font.
+  // In 4-panel always use mFactory (never wide). In 8-panel use wide only when option enabled and plain HH:MM.
   bool zone0SimpleHHMM = (ntpState != NTP_SYNCING && ntpSyncSuccessful && !showDayOfWeek && !colonBlinkEnabled);
-  if (zone0SimpleHHMM && useWideFontForTime && displaySize16) {
-    P.setFont(ZONE_CLOCK, nullptr);  // default font = wider
+  if (!displaySize16) {
+    P.setFont(ZONE_CLOCK, mFactory);  // 4-panel: always custom font
+  } else if (zone0SimpleHHMM && useWideFontForTime) {
+    P.setFont(ZONE_CLOCK, nullptr);  // 8-panel: wider font when enabled
   } else {
-    P.setFont(ZONE_CLOCK, mFactory);  // custom font for NTP error/sync and for time with day/seconds
+    P.setFont(ZONE_CLOCK, mFactory);
   }
 
   bool doingScrollIn = (displayMode == 0 && (prevDisplayMode == -1 || prevDisplayMode == 3 || prevDisplayMode == 4 || (prevDisplayMode == 2 && weatherDescription.length() > 8) || prevDisplayMode == 6) && !clockScrollDone);
-  // In 8-panel mode always refresh zone 0 so time stays visible on upper panel; in 4-panel only when content changed.
-  if (!doingScrollIn && (zone0Content != lastZone0Content || displaySize16)) {
+  // In 8-panel always refresh zone 0; in 4-panel always refresh when in clock mode so time stays visible (library needs persistent buffer).
+  if (!doingScrollIn && (zone0Content != lastZone0Content || displaySize16 || (!displaySize16 && displayMode == 0))) {
     lastZone0Content = zone0Content;
     P.setCharSpacing(ZONE_CLOCK, 0);
     P.setTextAlignment(ZONE_CLOCK, PA_CENTER);
-    P.setTextBuffer(ZONE_CLOCK, zone0Content.c_str());
+    P.setTextBuffer(ZONE_CLOCK, zone0Buffer);
     P.setTextEffect(ZONE_CLOCK, PA_PRINT, PA_NO_EFFECT);
     P.displayReset(ZONE_CLOCK);
   }
@@ -3163,22 +3168,24 @@ void loop() {
   if (displayMode == 0) {
     bool shouldScrollIn = (prevDisplayMode == -1 || prevDisplayMode == 3 || prevDisplayMode == 4 || (prevDisplayMode == 2 && weatherDescription.length() > 8) || prevDisplayMode == 6);
     if (shouldScrollIn && !clockScrollDone) {
-      if (zone0SimpleHHMM && useWideFontForTime && displaySize16) {
+      if (!displaySize16) {
+        P.setFont(ZONE_CLOCK, mFactory);
+      } else if (zone0SimpleHHMM && useWideFontForTime) {
         P.setFont(ZONE_CLOCK, nullptr);
       } else {
         P.setFont(ZONE_CLOCK, mFactory);
       }
       textEffect_t inDir = getEffectiveScrollDirection(PA_SCROLL_LEFT, flipDisplay);
-      P.displayZoneText(ZONE_CLOCK, timeString.c_str(), PA_CENTER, GENERAL_SCROLL_SPEED, 0, inDir, PA_NO_EFFECT);
+      P.displayZoneText(ZONE_CLOCK, zone0Buffer, PA_CENTER, GENERAL_SCROLL_SPEED, 0, inDir, PA_NO_EFFECT);
       while (!P.getZoneStatus(ZONE_CLOCK)) {
         P.displayAnimate();
         yield();
       }
-      // After scroll completes, set zone 0 to static time so it stays visible (library does not hold it by default).
+      // After scroll completes, set zone 0 to static time (library keeps pointer; zone0Buffer is static).
       lastZone0Content = timeString;
       P.setCharSpacing(ZONE_CLOCK, 0);
       P.setTextAlignment(ZONE_CLOCK, PA_CENTER);
-      P.setTextBuffer(ZONE_CLOCK, timeString.c_str());
+      P.setTextBuffer(ZONE_CLOCK, zone0Buffer);
       P.setTextEffect(ZONE_CLOCK, PA_PRINT, PA_NO_EFFECT);
       P.displayReset(ZONE_CLOCK);
       clockScrollDone = true;
