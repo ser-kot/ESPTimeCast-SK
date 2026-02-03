@@ -745,14 +745,6 @@ textarea::placeholder {
   </span>
 </label>
 
-<label style="display: flex; align-items: center; justify-content: space-between; margin-top: 0.75rem;">
-  <span style="margin-right: 0.5em;">Wide Font for Time (HH:MM):</span>
-  <span class="toggle-switch">
-    <input type="checkbox" id="useWideFontForTime" name="useWideFontForTime">
-    <span class="toggle-slider"></span>
-  </span>
-</label>
-
 
 <div class="form-row two-col">   
   <div>         
@@ -810,6 +802,15 @@ textarea::placeholder {
           title="Only uppercase letters, numbers, space, and : ! ' - . , _ + % / ? allowed">
         <div class="small">Allowed characters: A–Z, 0–9, space, and : ! ' - . ? , _ + % /</div>
       </div>
+
+      <label style="display: flex; align-items: center; justify-content: space-between; margin-top: 1.75rem;">
+        <span style="margin-right: 0.5em;">Wide Font for Time (HH:MM):</span>
+        <span class="toggle-switch">
+          <input type="checkbox" id="useWideFontForTime" name="useWideFontForTime">
+          <span class="toggle-slider"></span>
+        </span>
+      </label>
+      <p class="small" style="margin-top: 0.25rem;">Only in 32×16 (8-panel) mode. In 4-panel mode this option is ignored.</p>
     </div>   
   </div>
   <input type="submit" class="primary-button" value="Save Settings">
