@@ -582,6 +582,8 @@ void connectWiFi() {
     if (now - animTimer > 750) {
       animTimer = now;
       const char *animStr = (animFrame % 3 == 0) ? "# ©" : (animFrame % 3 == 1) ? "# ª" : "# «";
+      P.setFont(ZONE_CLOCK, mFactory);
+      P.setFont(ZONE_INFO, mFactory);
       P.setTextAlignment(ZONE_CLOCK, PA_CENTER);
       P.setCharSpacing(ZONE_CLOCK, 0);
       P.setTextBuffer(ZONE_CLOCK, animStr);
@@ -2773,6 +2775,8 @@ void loop() {
       apAnimFrame++;
     }
     const char *apStr = (apAnimFrame % 3 == 0) ? "= ©" : (apAnimFrame % 3 == 1) ? "= ª" : "= «";
+    P.setFont(ZONE_CLOCK, mFactory);
+    P.setFont(ZONE_INFO, mFactory);
     P.setTextAlignment(ZONE_CLOCK, PA_CENTER);
     P.setCharSpacing(ZONE_CLOCK, 0);
     P.setTextBuffer(ZONE_CLOCK, apStr);
@@ -3106,6 +3110,14 @@ void loop() {
     zone0Content = timeString;  // Always time when NTP ok; weather error (TEMP) shown on lower panel only
   }
 
+  // Use library default (wider) font for zone 0 only when showing plain HH:MM time; otherwise mFactory (NTP icons, day, seconds).
+  bool zone0SimpleHHMM = (ntpState != NTP_SYNCING && ntpSyncSuccessful && !showDayOfWeek && !colonBlinkEnabled);
+  if (zone0SimpleHHMM) {
+    P.setFont(ZONE_CLOCK, nullptr);  // default font = wider
+  } else {
+    P.setFont(ZONE_CLOCK, mFactory);  // custom font for NTP error/sync and for time with day/seconds
+  }
+
   bool doingScrollIn = (displayMode == 0 && (prevDisplayMode == -1 || prevDisplayMode == 3 || prevDisplayMode == 4 || (prevDisplayMode == 2 && weatherDescription.length() > 8) || prevDisplayMode == 6) && !clockScrollDone);
   if (!doingScrollIn && zone0Content != lastZone0Content) {
     lastZone0Content = zone0Content;
@@ -3120,6 +3132,11 @@ void loop() {
   if (displayMode == 0) {
     bool shouldScrollIn = (prevDisplayMode == -1 || prevDisplayMode == 3 || prevDisplayMode == 4 || (prevDisplayMode == 2 && weatherDescription.length() > 8) || prevDisplayMode == 6);
     if (shouldScrollIn && !clockScrollDone) {
+      if (zone0SimpleHHMM) {
+        P.setFont(ZONE_CLOCK, nullptr);
+      } else {
+        P.setFont(ZONE_CLOCK, mFactory);
+      }
       textEffect_t inDir = getEffectiveScrollDirection(PA_SCROLL_LEFT, flipDisplay);
       P.displayZoneText(ZONE_CLOCK, timeString.c_str(), PA_CENTER, GENERAL_SCROLL_SPEED, 0, inDir, PA_NO_EFFECT);
       while (!P.getZoneStatus(ZONE_CLOCK)) {
