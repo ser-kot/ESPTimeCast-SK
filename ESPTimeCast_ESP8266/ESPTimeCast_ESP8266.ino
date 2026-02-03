@@ -3155,7 +3155,8 @@ void loop() {
     P.setFont(ZONE_CLOCK, mFactory);
   }
 
-  bool doingScrollIn = (displayMode == 0 && (prevDisplayMode == -1 || prevDisplayMode == 3 || prevDisplayMode == 4 || (prevDisplayMode == 2 && weatherDescription.length() > 8) || prevDisplayMode == 6) && !clockScrollDone);
+  // 4-panel: scroll-in time every time we enter clock from any other mode (original behaviour). 8-panel: no scroll for time on upper row.
+  bool doingScrollIn = (displayMode == 0 && !displaySize16 && prevDisplayMode != 0 && !clockScrollDone);
   // In 8-panel always refresh zone 0; in 4-panel always refresh when in clock mode so time stays visible (library needs persistent buffer).
   if (!doingScrollIn && (zone0Content != lastZone0Content || displaySize16 || (!displaySize16 && displayMode == 0))) {
     lastZone0Content = zone0Content;
@@ -3166,10 +3167,10 @@ void loop() {
     P.displayReset(ZONE_CLOCK);
   }
 
-  // --- CLOCK Display Mode: scroll-in on zone 0 only in 4-panel when entering from other modes; in 8-panel upper panel stays static ---
+  // --- CLOCK Display Mode: scroll-in on zone 0 only in 4-panel when entering from other modes (every cycle, like original); 8-panel upper panel stays static ---
   if (displayMode == 0) {
-    bool shouldScrollIn = (prevDisplayMode == -1 || prevDisplayMode == 3 || prevDisplayMode == 4 || (prevDisplayMode == 2 && weatherDescription.length() > 8) || prevDisplayMode == 6);
-    if (shouldScrollIn && !clockScrollDone) {
+    bool shouldScrollIn = !displaySize16 && (prevDisplayMode != 0 && !clockScrollDone);
+    if (shouldScrollIn) {
       if (!displaySize16) {
         // 4-panel: do scroll-in animation (use same narrow spacing as static so no visual jump)
         P.setFont(ZONE_CLOCK, mFactory);
