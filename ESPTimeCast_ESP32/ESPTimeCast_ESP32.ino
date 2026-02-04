@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <esp_log.h>
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <AsyncTCP.h>
@@ -2421,22 +2422,23 @@ DisplayMode key:
 void setup() {
   Serial.begin(115200);
   delay(1000);
+  esp_log_level_set("esp_littlefs", ESP_LOG_NONE);
+  Serial.println();
+  Serial.println(F("[SETUP] Starting setup..."));
 #if defined(ARDUINO_USB_MODE)
   Serial.setTxTimeoutMs(50);
   Serial.println("[SERIAL] USB CDC detected — TX timeout enabled");
   delay(500);
 #endif
-  Serial.println();
-  Serial.println(F("[SETUP] Starting setup..."));
-
+  Serial.println(F("[FS] Mounting LittleFS (auto-format enabled)..."));
   if (!LittleFS.begin(true)) {
-    Serial.println(F("[ERROR] LittleFS mount failed in setup! Halting."));
+    Serial.println(F("[ERROR] LittleFS mount failed even after format. Halting."));
     while (true) {
       delay(1000);
       yield();
     }
   }
-  Serial.println(F("[SETUP] LittleFS file system mounted successfully."));
+  Serial.println(F("[FS] LittleFS mounted and ready."));
   loadUptime();
   ensureHtmlFileExists();
   loadConfig();  // Load before display init so displaySize16 is known for P.begin()
